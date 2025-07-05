@@ -1,81 +1,81 @@
-# Markdowner ⚡📝
+# URL-Parser-MD-Worker
 
-A fast tool to convert any website into LLM-ready markdown data.
+A Cloudflare Worker that converts any webpage into clean, readable Markdown using a headless browser.
 
-## 👀 Why?
+## Core Principles
 
-I'm building an AI app called Supermemory - https://git.new/memory. Where users can store website content in the app and then query it using AI. One thing I noticed was - when data is structured and predictable (in markdown format), the LLM responses are _much_ better.
+This worker utilizes Cloudflare's Browser Rendering (powered by `@cloudflare/puppeteer`) to render a webpage in a headless browser instance. The core logic hinges on two key JavaScript libraries that are injected into the page:
 
-There are other solutions available for this - https://r.jina.ai, https://firecrawl.dev, etc. But they are either:
+1.  **`@mozilla/readability`**: The engine behind Firefox's "Reader View". It excels at extracting the core article content from a webpage, stripping away distracting elements like navigation bars, ads, and footers.
+2.  **`turndown`**: A library that converts the cleaned HTML content into well-formatted Markdown.
 
-- too expensive / proprietary
-- or too limited.
-- very difficult to deploy
+The process is straightforward:
+1.  Puppeteer navigates to the target URL.
+2.  `Readability.js` and `turndown.js` are injected into the page.
+3.  Readability parses the DOM to isolate the main article content.
+4.  Turndown takes the resulting HTML and converts it into Markdown.
+5.  The final Markdown is returned as the response.
 
-Here's a quote from my friend [@nexxeln](https://github.com/nexxeln)
-![what users think](https://i.dhr.wtf/r/Clipboard_May_9,_2024_at_12.35 AM.png)
+## Limitations
 
-So naturally, we fix it ourselves ⚡
+This worker is built on Cloudflare's Browser Rendering API, which has significant limitations:
 
-## Features 🚀
+*   **Rate Limiting**: There are strict limits on the number of concurrent browser sessions and overall requests.
+*   **Timeouts**: Long-running pages may time out.
+*   **Resource Constraints**: The browser environment is resource-constrained (e.g., no GPU acceleration).
 
-- Convert any website into markdown
-- LLM Filtering
-- Detailed markdown mode
-- Auto Crawler (without sitemap!)
-- Text and JSON responses
-- Easy to self-host
-- ... All that and more, for FREE!
+For detailed and up-to-date information, please refer to the official Cloudflare documentation:
+[Cloudflare Browser Rendering Platform Limits](https://developers.cloudflare.com/browser-rendering/platform/limits/)
 
 ## Usage
 
-To use the API, just make GET a request to https://md.dhr.wtf
+Make a `GET` request to your worker's endpoint.
 
-Usage example:
-
-```
-$ curl 'https://md.dhr.wtf/?url=https://example.com'
-```
-
-##### _REQUIRED PARAMETERS_
-
-url (string) -> The website URL to convert into markdown.
-
-##### _OPTIONAL PARAMETERS_
-
-`enableDetailedResponse` (boolean: false) -> Toggle for detailed response with full HTML content.
-`crawlSubpages` (boolean: false) -> Crawl and return markdown for up to 10 subpages.
-`llmFilter` (boolean: false) -> Filter out unnecessary information using LLM.
-
-##### _Response Types_
-
-Add `Content-Type: text/plain` in headers for plain text response.
-Add `Content-Type: application/json` in headers for JSON response.
-
-## Tech
-
-Under the hood, Markdowner utilises Cloudflare's [Browser rendering](https://developers.cloudflare.com/browser-rendering/) and [Durable objects](https://developers.cloudflare.com/durable-objects/) to spin up browser instances and then convert it to markdown using Turndown.
-
-![Architecture diagram](https://i.dhr.wtf/r/Clipboard_May_9,_2024_at_12.25 AM.png)
-
-## Self hosting
-
-You can easily self host this project. To use the browser rendering and Durable Objects, you need the [Workers paid plan](https://developers.cloudflare.com/workers-ai/platform/pricing/)
-
-1. Clone the repo and download dependencies
-
-```
-git clone https://github.com/dhravya/markdowner
-npm i
+**Example:**
+```bash
+curl "https://your-worker-url.com/?url=https://example.com"
 ```
 
-2. Run this command:
-   ```
-   npx wrangler kv:namespace create md_cache
-   ```
-3. Open Wrangler.toml and change the IDs accordingly
-4. Run `npm run deploy`
-5. That's it 👍
+### Parameters
+
+*   **`url`** (string, **required**): The URL of the webpage to convert.
+*   **`enableDetailedResponse`** (boolean, optional): Returns the full page HTML converted to markdown, not just the article content. Defaults to `false`.
+*   **`crawlSubpages`** (boolean, optional): Crawls and returns markdown for up to 10 subpages. Defaults to `false`.
+*   **`llmFilter`** (boolean, optional): Filter out unnecessary information using LLM. Defaults to `false`.
+
+### Response Format
+
+Add the corresponding `Content-Type` header to your request:
+*   For plain text: `text/plain`
+*   For JSON: `application/json`
+
+## Self-Hosting
+
+This project is designed to be easily self-hosted on Cloudflare Workers. You will need the [Workers paid plan](https://developers.cloudflare.com/workers/platform/pricing) to use Browser Rendering.
+
+1.  **Clone & Install**:
+    ```bash
+    git clone https://github.com/Leizhenpeng/url-parser-md-worker
+    cd url-parser-md-worker
+    npm install
+    ```
+2.  **Configure `wrangler.toml`**: You may need to adjust the configuration in `wrangler.toml` to match your Cloudflare account details.
+
+3.  **Deploy**:
+    ```bash
+    npm run deploy
+    ```
+4.  That's it! Your worker is live.
+
+## Development
+
+To develop and test the worker, run the following command:
+
+```bash
+npm run dev
+```
+
+This will start a local development server using `wrangler dev --remote`, which connects to the Cloudflare network. This allows you to test your worker on a real Cloudflare endpoint, with live-reloading on code changes.
 
 ## Support
 
